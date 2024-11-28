@@ -9,8 +9,10 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
-
 import { auth } from "~/server/auth";
+import dbConnect from "../db";
+import { type CreateNextContextOptions } from "@trpc/server/adapters/next";
+import { type Session } from "next-auth";
 
 /**
  * 1. CONTEXT
@@ -24,13 +26,20 @@ import { auth } from "~/server/auth";
  *
  * @see https://trpc.io/docs/server/context
  */
+interface CreateInnerContextOptions extends Partial<CreateNextContextOptions> {
+  session: Session | null;
+}
+
+export const createContextInner = async (opts?: CreateInnerContextOptions) => {
+  await dbConnect();
+  return {
+    session: opts?.session,
+  };
+};
+
 export const createTRPCContext = async (opts: { headers: Headers }) => {
   const session = await auth();
-
-  return {
-    session,
-    ...opts,
-  };
+  return createContextInner({ session, ...opts });
 };
 
 /**
