@@ -10,7 +10,6 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
 import { auth } from "~/server/auth";
-import dbConnect from "../db";
 import { type CreateNextContextOptions } from "@trpc/server/adapters/next";
 import { type Session } from "next-auth";
 
@@ -31,7 +30,6 @@ interface CreateInnerContextOptions extends Partial<CreateNextContextOptions> {
 }
 
 export const createContextInner = async (opts?: CreateInnerContextOptions) => {
-  await dbConnect();
   return {
     session: opts?.session,
   };

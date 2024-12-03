@@ -1,53 +1,36 @@
-import mongoose, { type Mongoose } from "mongoose";
+import { MongoClient, ServerApiVersion } from "mongodb";
 
-interface Connection {
-  conn: Mongoose | null;
-  promise: Promise<Mongoose> | null;
+if (!process.env.MONGODB_URI) {
+  throw new Error('Invalid/Missing environment variable: "MONGODB_URI"');
 }
 
-declare global {
-  // eslint-disable-next-line no-var
-  var mongoose: Connection; // This must be a `var` and not a `let / const`
+const uri = process.env.MONGODB_URI;
+const options = {
+  serverApi: {
+    version: ServerApiVersion.v1,
+    strict: true,
+    deprecationErrors: true,
+  },
+};
+
+let client: MongoClient;
+
+if (process.env.NODE_ENV === "development") {
+  // In development mode, use a global variable so that the value
+  // is preserved across module reloads caused by HMR (Hot Module Replacement).
+  const globalWithMongo = global as typeof globalThis & {
+    _mongoClient?: MongoClient;
+  };
+
+  if (!globalWithMongo._mongoClient) {
+    globalWithMongo._mongoClient = new MongoClient(uri, options);
+  }
+  client = globalWithMongo._mongoClient;
+} else {
+  // In production mode, it's best to not use a global variable.
+  client = new MongoClient(uri, options);
 }
 
-let cached = global.mongoose;
-
-if (!cached) {
-  cached = global.mongoose = { conn: null, promise: null };
-}
-
-const MONGODB_URI = process.env.MONGODB_URI;
-
-async function dbConnect() {
-  // to transfer into env
-  if (!MONGODB_URI) {
-    throw new Error(
-      "Please define the MONGODB_URI environment variable inside .env.local",
-    );
-  }
-
-  if (cached.conn) {
-    return cached.conn;
-  }
-
-  if (!cached.promise) {
-    const opts = {
-      bufferCommands: false,
-    };
-    console.log("connecting to db...");
-    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
-      return mongoose;
-    });
-  }
-  try {
-    cached.conn = await cached.promise;
-    console.log(`Connected to MongoDB: ${cached.conn.Connection.name}`);
-  } catch (e) {
-    cached.promise = null;
-    throw e;
-  }
-
-  return cached.conn;
-}
-
-export default dbConnect;
+// Export a module-scoped MongoClient. By doing this in a
+// separate module, the client can be shared across functions.
+export default client;
